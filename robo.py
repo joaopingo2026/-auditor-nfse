@@ -1,36 +1,75 @@
+import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-print("🤖 ROBÔ DE AUDITORIA PRO - VERSÃO FINAL!")
+st.set_page_config(page_title="Robô Auditor NFS-e PRO", page_icon="🤖", layout="wide")
 
-df = pd.read_csv("vendas_10k.csv")
-print(f"Total: {len(df)} vendas")
-print(f"Colunas: {list(df.columns)}")
+# --- SEU NEGÓCIO - EDITE AQUI ---
+PIX = "839xxxx-xxxx - SEU NOME"
+VALOR = "R$ 97,00 / mês"
+SENHAS = {"contador1": "1234", "admin": "admin2026", "joao": "auditor"}
 
-col_valor = 'valor'
-col_vendedor = 'vendedor'
+# --- LOGIN ---
+if "logado" not in st.session_state:
+    st.session_state.logado = False
 
-# FILTRO
-suspeitas = df[df[col_valor] > 5000].copy()
-print(f"⚠️ {len(suspeitas)} vendas acima de R$ 5.000")
+if not st.session_state.logado:
+    st.title("🤖 Robô Auditor NFS-e - Acesso Restrito")
+    st.warning(f"Para liberar: Faça PIX de {VALOR} para {PIX} e peça seu usuário")
+    u = st.text_input("Usuário")
+    s = st.text_input("Senha", type="password")
+    if st.button("Entrar"):
+        if u in SENHAS and SENHAS[u] == s:
+            st.session_state.logado = True
+            st.session_state.user = u
+            st.rerun()
+        else:
+            st.error("Não liberado. Faça o PIX e me chame no WhatsApp!")
+    st.stop()
 
-# RESUMO POR VENDEDOR (agora certo!)
-resumo = suspeitas.groupby(col_vendedor)[col_valor].agg(
-    qtd_suspeitas='count',
-    total_risco='sum',
-    ticket_medio='mean'
-).sort_values(by='total_risco', ascending=False).reset_index()
+# --- SISTEMA ---
+st.sidebar.success(f"Logado: {st.session_state.user}")
+if st.sidebar.button("Sair"):
+    st.session_state.logado = False
+    st.rerun()
 
-total_risco = suspeitas[col_valor].sum()
+st.title("🤖 ROBÔ DE AUDITORIA PRO - VERSÃO FINAL")
+st.caption(f"Logado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
-# SALVA
-nome_final = f"auditoria_final_{datetime.now().strftime('%d-%m_%Hh%M')}.xlsx"
+arquivo = st.file_uploader("Arraste a planilha da NFS-e aqui", type=["csv","xlsx","xls"])
 
-with pd.ExcelWriter(nome_final, engine='openpyxl') as writer:
-    suspeitas.to_excel(writer, sheet_name='Vendas_Suspeitas', index=False)
-    resumo.to_excel(writer, sheet_name='Resumo_Por_Vendedor', index=False)
+if arquivo:
+    if arquivo.name.endswith(".csv"):
+        df = pd.read_csv(arquivo)
+    else:
+        df = pd.read_excel(arquivo)
 
-print(f"💰 Total em risco: R$ {total_risco:,.2f}")
-print(f"✅ Salvei: {nome_final}")
-print("\n🏆 TOP 5 VENDEDORES EM RISCO:")
-print(resumo.head(5).to_string(index=False))
+    st.success(f"✅ {len(df)} vendas carregadas!")
+    st.write("Colunas:", list(df.columns))
+
+    # Achar coluna de valor
+    col_valor = None
+    for c in df.columns:
+        if "valor" in c.lower() or "total" in c.lower() or "vlr" in c.lower() or "valentia" in c.lower():
+            col_valor = c
+            break
+    if not col_valor:
+        col_valor = st.selectbox("Qual coluna é o VALOR?", df.columns)
+
+    limite = st.number_input("Marcar como suspeito acima de R$", value=5000.0)
+    supostas = df[df[col_valor] > limite].copy()
+
+    st.error(f"⚠️ {len(supostas)} vendas suspeitas acima de R$ {limite:,.2f}")
+    st.dataframe(supostas)
+
+    # Resumo por vendedor
+    if "vendedor" in [c.lower() for c in df.columns]:
+        col_vend = [c for c in df.columns if "vendedor" in c.lower()][0]
+        resumo = supostas.groupby(col_vend)[col_valor].agg(qtd="count", total_risco="sum").sort_values("total_risco", ascending=False)
+        st.write("### Resumo por vendedor")
+        st.dataframe(resumo)
+
+    csv = supostas.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 BAIXAR RELATÓRIO", csv, "relatorio_auditoria.csv", "text/csv")
+else:
+    st.info("👆 Faça upload da planilha para começar a auditar")
