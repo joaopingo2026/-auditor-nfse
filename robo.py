@@ -5,9 +5,9 @@ from datetime import datetime
 st.set_page_config(page_title="Robô Auditor NFS-e PRO", page_icon="🤖", layout="wide")
 
 # --- SEU NEGÓCIO - EDITE AQUI ---
-PIX = "839xxxx-xxxx - SEU NOME"
-VALOR = "R$ 97,00 / mês"
-SENHAS = {"contador1": "1234", "admin": "admin2026", "joao": "auditor"}
+PIX = "8399940-6651 - JOAO BATISTA FERREIRA LIMA"
+VALOR = "R$ 250,00 / mês"
+SENHAS = {"contador1": "1234", "admin": "admin2026", "joao": "auditor", "demo": "demo123"}
 
 # --- LOGIN ---
 if "logado" not in st.session_state:
